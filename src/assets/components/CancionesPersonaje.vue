@@ -1,67 +1,52 @@
 <template>
-  <div class="canciones-personaje" v-if="personaje">
-    <div class="cabecera-personaje">
-      <h2 class="titulo-seccion">
-        <i class="fas fa-music"></i> Canciones de {{ personaje.nombre }}
-      </h2>
-      <div class="etiquetas-peliculas" v-if="personaje.peliculas.length">
-        <span class="etiqueta-pelicula" v-for="(pelicula, index) in personaje.peliculas.slice(0, 3)" :key="index">
-          {{ pelicula }}
-        </span>
-      </div>
-    </div>
+  <div class="buscar-canciones">
+    <!-- Título de la sección -->
+    <h2 class="titulo-seccion">Buscar Canciones Disney</h2>
     
-    <div class="controles-busqueda">
-      <input
-        v-model="terminoBusqueda"
-        placeholder="Filtrar canciones..."
-        class="entrada-filtro"
+    <!-- Contenedor de búsqueda -->
+    <div class="contenedor-busqueda">
+      <!-- Campo de entrada para buscar canciones -->
+      <input 
+        v-model="terminoBusqueda" 
+        @keyup.enter="buscarCanciones" 
+        placeholder="Busca canciones de Disney..."
+        class="entrada-busqueda"
       >
-      <button @click="recargarCanciones" class="boton-recargar">
-        <i class="fas fa-sync-alt"></i> Actualizar
+      <!-- Botón para iniciar la búsqueda -->
+      <button @click="buscarCanciones" class="boton-buscar">
+        <i class="fas fa-search"></i> Buscar
       </button>
     </div>
     
+    <!-- Indicador de carga mientras se buscan canciones -->
     <div v-if="cargando" class="cargando">
       <div class="spinner"></div>
-      <p>Buscando canciones mágicas...</p>
+      <p>Cargando canciones...</p>
     </div>
     
     <div v-else>
-      <div v-if="canciones.length === 0" class="sin-resultados">
+      <!-- Mensaje si no se encuentran resultados -->
+      <div v-if="canciones.length === 0 && busquedaRealizada" class="sin-resultados">
         <i class="fas fa-music"></i>
-        <p>No encontramos canciones para {{ personaje.nombre }}</p>
-        <button @click="buscarCancionesGenericas" class="boton-alternativo">
-          Buscar canciones de Disney
-        </button>
+        <p>No se encontraron canciones</p>
       </div>
       
-      <div class="grid-canciones">
-        <div v-for="cancion in cancionesFiltradas" :key="cancion.id" class="tarjeta-cancion">
+      <!-- Lista de canciones encontradas -->
+      <div class="grid-canciones" v-if="canciones.length > 0">
+        <div v-for="cancion in canciones" :key="cancion.id" class="tarjeta-cancion">
+          <!-- Imagen del álbum de la canción -->
           <div class="imagen-cancion">
             <img :src="cancion.album.images[0].url" :alt="cancion.name">
-            <div class="overlay-cancion">
-              <i class="fas fa-play"></i>
-            </div>
           </div>
+          <!-- Información de la canción -->
           <div class="info-cancion">
             <h3>{{ cancion.name }}</h3>
-            <div class="detalles-cancion">
-              <p class="artista">
-                <i class="fas fa-user"></i> {{ cancion.artists[0].name }}
-              </p>
-              <p class="album">
-                <i class="fas fa-compact-disc"></i> {{ cancion.album.name }}
-              </p>
-            </div>
-            <div class="acciones-cancion">
-              <a :href="cancion.external_urls.spotify" target="_blank" class="boton-reproducir">
-                <i class="fab fa-spotify"></i> Spotify
-              </a>
-              <button @click="verAlbum(cancion.album.id)" class="boton-album">
-                <i class="fas fa-eye"></i> Álbum
-              </button>
-            </div>
+            <p class="artista">{{ cancion.artists[0].name }}</p>
+            <p class="album">{{ cancion.album.name }}</p>
+            <!-- Enlace para escuchar la canción en Spotify -->
+            <a :href="cancion.external_urls.spotify" target="_blank" class="boton-reproducir">
+              <i class="fab fa-spotify"></i> Escuchar en Spotify
+            </a>
           </div>
         </div>
       </div>
@@ -70,175 +55,92 @@
 </template>
 
 <script>
+// Importamos el servicio para buscar canciones en Spotify
 import apiSpotify from '@/services/apiSpotify';
 
 export default {
-  name: 'CancionesPersonaje',
-  props: {
-    personaje: {
-      type: Object,
-      default: null
-    }
-  },
+  name: 'BuscarCanciones',
   data() {
     return {
-      canciones: [],
-      cargando: false,
-      terminoBusqueda: '',
-      busquedaRealizada: false
+      canciones: [], // Lista de canciones encontradas
+      cargando: false, // Indicador de carga
+      terminoBusqueda: '', // Término ingresado por el usuario
+      busquedaRealizada: false // Indica si ya se realizó una búsqueda
     };
   },
-  computed: {
-    cancionesFiltradas() {
-      if (!this.terminoBusqueda) return this.canciones;
-      const termino = this.terminoBusqueda.toLowerCase();
-      return this.canciones.filter(cancion => 
-        cancion.name.toLowerCase().includes(termino) ||
-        cancion.artists[0].name.toLowerCase().includes(termino) ||
-        cancion.album.name.toLowerCase().includes(termino)
-      );
-    }
-  },
-  watch: {
-    personaje: {
-      immediate: true,
-      async handler(nuevoValor) {
-        if (nuevoValor) {
-          await this.cargarCanciones();
-        }
-      }
-    }
-  },
   methods: {
-    async cargarCanciones() {
-      this.cargando = true;
-      this.canciones = [];
-      this.busquedaRealizada = true;
+    // Método para buscar canciones
+    async buscarCanciones() {
+      // Si el término de búsqueda está vacío, no hacemos nada
+      if (!this.terminoBusqueda.trim()) return;
+      
+      this.cargando = true; // Mostramos el indicador de carga
+      this.canciones = []; // Limpiamos la lista de canciones
+      this.busquedaRealizada = true; // Marcamos que se realizó una búsqueda
       
       try {
-        // Primero buscamos por personaje + películas
-        const cancionesPersonaje = await apiSpotify.obtenerCancionesPersonaje(
-          this.personaje.nombre, 
-          this.personaje.peliculas
-        );
-        
-        // Si no hay suficientes resultados, buscamos solo por películas
-        if (cancionesPersonaje.length < 5 && this.personaje.peliculas.length) {
-          const cancionesPeliculas = await apiSpotify.buscarCancionesDisney(
-            this.personaje.peliculas[0]
-          );
-          // Combinamos y eliminamos duplicados
-          this.canciones = [...new Set([...cancionesPersonaje, ...cancionesPeliculas])];
-        } else {
-          this.canciones = cancionesPersonaje;
-        }
+        // Llamamos al servicio para buscar canciones de Disney
+        this.canciones = await apiSpotify.buscarCancionesDisney(this.terminoBusqueda);
       } catch (error) {
         console.error(error);
-        this.$emit('error', 'Error al cargar canciones');
+        // Emitimos un evento de error si algo falla
+        this.$emit('error', 'Error al buscar canciones');
       } finally {
-        this.cargando = false;
+        this.cargando = false; // Ocultamos el indicador de carga
       }
-    },
-    
-    recargarCanciones() {
-      this.cargarCanciones();
-    },
-    
-    buscarCancionesGenericas() {
-      this.$emit('buscar-disney');
-    },
-    
-    verAlbum(albumId) {
-      window.open(`https://open.spotify.com/album/${albumId}`, '_blank');
     }
   }
 };
 </script>
 
 <style scoped>
-.canciones-personaje {
+/* Contenedor principal de la sección */
+.buscar-canciones {
   padding: 2rem;
-  background-color: #fff;
+  background-color: var(--gris-claro);
   border-radius: 12px;
   margin-top: 2rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.cabecera-personaje {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.titulo-seccion {
-  color: var(--azul-disney);
-  margin-bottom: 0.5rem;
+/* Contenedor de la barra de búsqueda */
+.contenedor-busqueda {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.etiquetas-peliculas {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.etiqueta-pelicula {
-  background-color: var(--amarillo-disney);
-  color: #333;
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.controles-busqueda {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
   max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0 auto 2rem;
 }
 
-.entrada-filtro {
-  flex: 1;
-  padding: 0.8rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+/* Campo de entrada de búsqueda */
+.entrada-busqueda {
+  flex-grow: 1;
+  padding: 1rem 1.5rem;
+  border: 2px solid var(--azul-disney);
+  border-radius: 50px 0 0 50px;
   font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.entrada-filtro:focus {
-  border-color: var(--azul-disney);
   outline: none;
 }
 
-.boton-recargar {
+/* Botón de búsqueda */
+.boton-buscar {
   padding: 0 1.5rem;
   background-color: var(--azul-disney);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 0 50px 50px 0;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
-.boton-recargar:hover {
-  background-color: #0066cc;
-  transform: translateY(-2px);
+.boton-buscar:hover {
+  background-color: #6d7fb8;
 }
 
+/* Icono dentro del botón */
+.boton-buscar i {
+  margin-right: 0.5rem;
+}
+
+/* Contenedor de las canciones encontradas */
 .grid-canciones {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -246,6 +148,7 @@ export default {
   margin-top: 1.5rem;
 }
 
+/* Tarjeta de cada canción */
 .tarjeta-cancion {
   display: flex;
   background: white;
@@ -253,19 +156,18 @@ export default {
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-  border: 1px solid #eaeaea;
 }
 
 .tarjeta-cancion:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
 }
 
+/* Imagen del álbum */
 .imagen-cancion {
   width: 120px;
   height: 120px;
   flex-shrink: 0;
-  position: relative;
 }
 
 .imagen-cancion img {
@@ -274,81 +176,43 @@ export default {
   object-fit: cover;
 }
 
-.overlay-cancion {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.tarjeta-cancion:hover .overlay-cancion {
-  opacity: 1;
-}
-
-.overlay-cancion i {
-  color: white;
-  font-size: 2rem;
-}
-
+/* Información de la canción */
 .info-cancion {
   padding: 1rem;
   flex-grow: 1;
-  display: flex;
-  flex-direction: column;
 }
 
 .info-cancion h3 {
   color: var(--azul-disney);
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
-  line-height: 1.3;
-}
-
-.detalles-cancion {
-  margin-top: auto;
-}
-
-.detalles-cancion p {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
   margin-bottom: 0.3rem;
+  font-size: 1rem;
+}
+
+.info-cancion .artista {
   color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 0.3rem;
 }
 
-.detalles-cancion i {
-  color: var(--azul-disney);
+.info-cancion .album {
+  color: #777;
   font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  font-style: italic;
 }
 
-.acciones-cancion {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.8rem;
-}
-
+/* Botón para reproducir en Spotify */
 .boton-reproducir {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: inline-block;
   background-color: #1DB954;
   color: white;
-  padding: 0.5rem 0.8rem;
+  padding: 0.5rem 1rem;
   border-radius: 20px;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.8rem;
+  margin-top: 0.5rem;
   transition: all 0.3s ease;
-  flex: 1;
-  justify-content: center;
 }
 
 .boton-reproducir:hover {
@@ -356,29 +220,11 @@ export default {
   transform: scale(1.05);
 }
 
-.boton-album {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: var(--purpura-disney);
-  color: white;
-  padding: 0.5rem 0.8rem;
-  border-radius: 20px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.8rem;
-  transition: all 0.3s ease;
-  border: none;
-  cursor: pointer;
-  flex: 1;
-  justify-content: center;
+.boton-reproducir i {
+  margin-right: 0.5rem;
 }
 
-.boton-album:hover {
-  background-color: #b399d4;
-  transform: scale(1.05);
-}
-
+/* Mensaje cuando no hay resultados */
 .sin-resultados {
   text-align: center;
   padding: 2rem;
@@ -391,31 +237,15 @@ export default {
   color: var(--azul-disney);
 }
 
-.boton-alternativo {
-  margin-top: 1rem;
-  padding: 0.8rem 1.5rem;
-  background-color: var(--amarillo-disney);
-  color: #333;
-  border: none;
-  border-radius: 30px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.boton-alternativo:hover {
-  background-color: #ffd700;
-  transform: translateY(-2px);
-}
-
+/* Indicador de carga */
 .cargando {
   text-align: center;
-  padding: 3rem;
+  padding: 2rem;
   color: var(--azul-disney);
 }
 
 .spinner {
-  border: 5px solid rgba(0, 102, 204, 0.2);
+  border: 5px solid rgba(17, 60, 207, 0.3);
   border-radius: 50%;
   border-top: 5px solid var(--azul-disney);
   width: 50px;
@@ -429,28 +259,33 @@ export default {
   100% { transform: rotate(360deg); }
 }
 
+/* Estilos responsivos */
 @media (max-width: 768px) {
   .grid-canciones {
     grid-template-columns: 1fr;
   }
   
-  .controles-busqueda {
-    flex-direction: column;
-  }
-  
-  .boton-recargar {
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
   .tarjeta-cancion {
     flex-direction: column;
   }
   
   .imagen-cancion {
     width: 100%;
-    height: 150px;
+    height: auto;
+  }
+  
+  .contenedor-busqueda {
+    flex-direction: column;
+  }
+  
+  .entrada-busqueda {
+    border-radius: 50px;
+    margin-bottom: 1rem;
+  }
+  
+  .boton-buscar {
+    border-radius: 50px;
+    padding: 1rem;
   }
 }
 </style>

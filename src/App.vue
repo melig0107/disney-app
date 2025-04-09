@@ -1,16 +1,22 @@
 <template>
   <div id="app">
+    <!-- Cabecera del sitio -->
     <header class="cabecera">
       <div class="contenido-cabecera">
+        <!-- Título principal -->
         <h1>El Mágico Mundo de Disney</h1>
+        <!-- Subtítulo -->
         <p class="subtitulo">Personajes y Canciones</p>
+        <!-- Menú de navegación principal -->
         <nav class="menu-principal">
+          <!-- Botón para la sección de personajes -->
           <button 
             @click="seccionActiva = 'personajes'" 
             :class="{ activo: seccionActiva === 'personajes' }"
           >
             <i class="fas fa-users"></i> Personajes
           </button>
+          <!-- Botón para la sección de música -->
           <button 
             @click="seccionActiva = 'musica'" 
             :class="{ activo: seccionActiva === 'musica' }"
@@ -21,18 +27,23 @@
       </div>
     </header>
     
+    <!-- Contenido principal -->
     <main class="contenido-principal">
+      <!-- Mensaje de error si ocurre algún problema -->
       <div v-if="error" class="mensaje-error">
         <i class="fas fa-exclamation-triangle"></i>
         <p>{{ error }}</p>
       </div>
       
+      <!-- Sección de personajes -->
       <div v-if="seccionActiva === 'personajes'">
+        <!-- Componente para mostrar personajes -->
         <personajes-disney 
           @personaje-seleccionado="mostrarCancionesPersonaje"
           @error="manejarError"
         />
         
+        <!-- Componente para mostrar canciones del personaje seleccionado -->
         <canciones-personaje 
           v-if="personajeSeleccionado"
           :personaje="personajeSeleccionado"
@@ -41,12 +52,14 @@
         />
       </div>
       
+      <!-- Sección de búsqueda de canciones -->
       <buscar-canciones 
         v-else
         @error="manejarError"
       />
     </main>
     
+    <!-- Pie de página -->
     <footer class="pie-pagina">
       <p>© {{ anioActual }} Disney - Todos los derechos reservados</p>
     </footer>
@@ -54,6 +67,7 @@
 </template>
 
 <script>
+// Importación de componentes
 import PersonajesDisney from '@/assets/components/PersonajesDisney.vue';
 import BuscarCanciones from '@/assets/components/BuscarCanciones.vue';
 import CancionesPersonaje from '@/assets/components/CancionesPersonaje.vue';
@@ -67,19 +81,25 @@ export default {
   },
   data() {
     return {
+      // Controla la sección activa (personajes o música)
       seccionActiva: 'personajes',
+      // Almacena el personaje seleccionado
       personajeSeleccionado: null,
+      // Mensaje de error
       error: null,
+      // Año actual para el pie de página
       anioActual: new Date().getFullYear()
     };
   },
   methods: {
+    // Maneja los errores y los muestra temporalmente
     manejarError(mensaje) {
       this.error = mensaje;
       setTimeout(() => {
         this.error = null;
       }, 5000);
     },
+    // Muestra las canciones del personaje seleccionado
     mostrarCancionesPersonaje(personaje) {
       this.personajeSeleccionado = personaje;
       setTimeout(() => {
@@ -94,9 +114,11 @@ export default {
 </script>
 
 <style>
+/* Importación de fuentes y estilos de iconos */
 @import url('https://fonts.googleapis.com/css2?family=Walter+Turncoat&family=Montserrat:wght@400;600;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
 
+/* Variables de colores */
 :root {
   --azul-disney: #93c5f8;
   --amarillo-disney: #ffde59;
@@ -106,12 +128,14 @@ export default {
   --borde: #e0d6c2;
 }
 
+/* Reset de estilos */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+/* Estilos generales */
 html, body, #app {
   height: 100%;
   width: 100%;
@@ -123,7 +147,7 @@ body {
   color: #333;
   line-height: 1.6;
   overflow-x: hidden;
-  background-color:#b1d3ff
+  background-color: #b1d3ff;
 }
 
 #app {
@@ -132,6 +156,7 @@ body {
   min-height: 100vh;
 }
 
+/* Estilos de la cabecera */
 .cabecera {
   background: linear-gradient(135deg, var(--azul-disney), #7a38ff);
   color: white;
@@ -158,6 +183,7 @@ h1 {
   margin-bottom: 1.5rem;
 }
 
+/* Estilos del menú principal */
 .menu-principal {
   display: flex;
   justify-content: center;
@@ -189,6 +215,7 @@ h1 {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Estilos del contenido principal */
 .contenido-principal {
   flex: 1;
   padding: 1.5rem;
@@ -197,6 +224,7 @@ h1 {
   width: 100%;
 }
 
+/* Estilos del mensaje de error */
 .mensaje-error {
   background-color: #ffebee;
   color: #ff0000;
@@ -212,6 +240,7 @@ h1 {
   font-size: 1.5rem;
 }
 
+/* Estilos del pie de página */
 .pie-pagina {
   background-color: #333;
   color: white;
@@ -220,6 +249,7 @@ h1 {
   margin-top: auto;
 }
 
+/* Estilos responsivos */
 @media (max-width: 768px) {
   h1 {
     font-size: 2rem;
